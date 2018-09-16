@@ -1,8 +1,14 @@
 package com.songoda.epichoppers.utils;
 
-import com.songoda.arconix.api.methods.formatting.TextComponent;
-import com.songoda.arconix.api.utils.ConfigWrapper;
-import com.songoda.epichoppers.EpicHoppersPlugin;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -16,9 +22,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.songoda.arconix.api.methods.formatting.TextComponent;
+import com.songoda.arconix.api.utils.ConfigWrapper;
+import com.songoda.epichoppers.EpicHoppersPlugin;
 
 /**
  * Created by songo on 6/4/2017.
@@ -30,7 +36,7 @@ public class SettingsManager implements Listener {
     private static final Pattern SETTINGS_PATTERN = Pattern.compile("(.{1,28}(?:\\s|$))|(.{0,28})", Pattern.DOTALL);
 
     private static ConfigWrapper defs;
-    
+
     private Map<Player, String> cat = new HashMap<>();
 
     private final EpicHoppersPlugin instance;
@@ -50,22 +56,22 @@ public class SettingsManager implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         ItemStack clickedItem = event.getCurrentItem();
 
-        if (event.getInventory() != event.getWhoClicked().getOpenInventory().getTopInventory()
-                || clickedItem == null || !clickedItem.hasItemMeta()
-                || !clickedItem.getItemMeta().hasDisplayName()) {
+        if (event.getInventory() != event.getWhoClicked().getOpenInventory().getTopInventory() || clickedItem == null || !clickedItem.hasItemMeta() || !clickedItem.getItemMeta().hasDisplayName()) {
             return;
         }
 
         if (event.getInventory().getTitle().equals(pluginName + " Settings Manager")) {
             event.setCancelled(true);
-            if (clickedItem.getType().name().contains("STAINED_GLASS")) return;
+            if (clickedItem.getType().name().contains("STAINED_GLASS"))
+                return;
 
             String type = ChatColor.stripColor(clickedItem.getItemMeta().getDisplayName());
             this.cat.put((Player) event.getWhoClicked(), type);
             this.openEditor((Player) event.getWhoClicked());
         } else if (event.getInventory().getTitle().equals(pluginName + " Settings Editor")) {
             event.setCancelled(true);
-            if (clickedItem.getType().name().contains("STAINED_GLASS")) return;
+            if (clickedItem.getType().name().contains("STAINED_GLASS"))
+                return;
 
             Player player = (Player) event.getWhoClicked();
 
@@ -83,7 +89,8 @@ public class SettingsManager implements Listener {
     @EventHandler
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        if (!current.containsKey(player)) return;
+        if (!current.containsKey(player))
+            return;
 
         String value = current.get(player);
         FileConfiguration config = instance.getConfig();
@@ -104,7 +111,6 @@ public class SettingsManager implements Listener {
         this.instance.saveConfig();
         this.openEditor(player);
     }
-
 
     public void editObject(Player player, String current) {
         this.current.put(player, ChatColor.stripColor(current));
@@ -127,7 +133,7 @@ public class SettingsManager implements Listener {
 
         int slot = 10;
         for (String key : instance.getConfig().getDefaultSection().getKeys(false)) {
-            ItemStack item = new ItemStack(Material.WHITE_WOOL, 1, (byte) (slot - 9)); //ToDo: Make this function as it was meant to.
+            ItemStack item = new ItemStack(Material.WOOL, 1, (byte) (slot - 9)); //ToDo: Make this function as it was meant to.
             ItemMeta meta = item.getItemMeta();
             meta.setLore(Collections.singletonList(TextComponent.formatText("&6Click To Edit This Category.")));
             meta.setDisplayName(TextComponent.formatText("&f&l" + key));
@@ -158,7 +164,7 @@ public class SettingsManager implements Listener {
                 item.setType(Material.PAPER);
                 lore.add(TextComponent.formatText("&9" + config.getString(fKey)));
             } else if (config.isInt(fKey)) {
-                item.setType(Material.CLOCK);
+                item.setType(Material.WATCH);
                 lore.add(TextComponent.formatText("&5" + config.getInt(fKey)));
             }
 
@@ -183,48 +189,44 @@ public class SettingsManager implements Listener {
     }
 
     public void updateSettings() {
-        FileConfiguration config = instance.getConfig();
-
-        for (Setting setting : Setting.values()) {
-            if (config.contains("settings." + setting.oldSetting)) {
-                config.addDefault(setting.setting, instance.getConfig().get("settings." + setting.oldSetting));
-                config.set("settings." + setting.oldSetting, null);
-            } else {
-                config.addDefault(setting.setting, setting.option);
-            }
+        for (Setting s : Setting.values()) {
+            if (s.setting.equals("Main.Upgrade Particle Type")) {
+                if (!instance.isServerVersionAtLeast(ServerVersion.V1_9))
+                    instance.getConfig().addDefault(s.setting, "WITCH_MAGIC");
+                else
+                    instance.getConfig().addDefault(s.setting, s.option);
+            } else
+                instance.getConfig().addDefault(s.setting, s.option);
         }
     }
+
     public enum Setting {
-        o1("Upgrading-enabled", "Main.Allow hopper Upgrading", true),
-        o2("Upgrade-with-eco", "Main.Upgrade With Economy", true),
-        o3("Upgrade-with-xp", "Main.Upgrade With XP", true),
-        o4("Teleport-hoppers", "Main.Allow Players To Teleport Through Hoppers", true),
-        o6("EnderChest-support", "Main.Support Enderchests", true),
-        o7("Upgrade-particle-type", "Main.Upgrade Particle Type", "SPELL_WITCH"),
-        o8("Hop-Tick", "Main.Amount of Ticks Between Hops", 8L),
-        o9("Tele-Tick", "Main.Amount of Ticks Between Teleport", 10L),
-        o10("Sync-Timeout", "Main.Timeout When Syncing Hoppers", 300L),
-        o11("hopper-Limit", "Main.Max Hoppers Per Chunk", -1),
-        o12("Helpful-Tips", "Main.Display Helpful Tips For Operators", true),
-        o13("Sounds", "Main.Sounds Enabled", true),
-        o14("BlockBreak-Particle-Type", "Main.BlockBreak Particle Type", "LAVA"),
-        o15("BlockBreak-Blacklist", "Main.BlockBreak Blacklisted Blocks", Arrays.asList("BEDROCK")),
-
-        o16("Rainbow-Glass", "Interfaces.Replace Glass Type 1 With Rainbow Glass", false),
-        o17("ECO-Icon", "Interfaces.Economy Icon", "SUNFLOWER"),
-        o18("XP-Icon", "Interfaces.XP Icon", "EXPERIENCE_BOTTLE"),
-        o19("Glass-Type-1", "Interfaces.Glass Type 1", 7),
-        o20("Glass-Type-2", "Interfaces.Glass Type 2", 11),
-        o21("Glass-Type-3", "Interfaces.Glass Type 3", 3),
-
-        o22("Debug-Mode", "System.Debugger Enabled", false);
+        o1("Main.Allow hopper Upgrading", true),
+        o2("Main.Upgrade With Economy", true),
+        o3("Main.Upgrade With XP", true),
+        o4("Main.Allow Players To Teleport Through Hoppers", true),
+        o6("Main.Support Enderchests", true),
+        o7("Main.Upgrade Particle Type", "WITCH_MAGIC"),
+        o8("Main.Amount of Ticks Between Hops", 8L),
+        o9("Main.Amount of Ticks Between Teleport", 10L),
+        o10("Main.Timeout When Syncing Hoppers", 300L),
+        o11("Main.Max Hoppers Per Chunk", -1),
+        o12("Main.Display Helpful Tips For Operators", true),
+        o13("Main.Sounds Enabled", true),
+        o14("Main.BlockBreak Particle Type", "LAVA"),
+        o15("Main.BlockBreak Blacklisted Blocks", Arrays.asList("BEDROCK")),
+        o16("Interfaces.Replace Glass Type 1 With Rainbow Glass", false),
+        o17("Interfaces.Economy Icon", "DOUBLE_PLANT"),
+        o18("Interfaces.XP Icon", "EXP_BOTTLE"),
+        o19("Interfaces.Glass Type 1", 7),
+        o20("Interfaces.Glass Type 2", 11),
+        o21("Interfaces.Glass Type 3", 3),
+        o22("System.Debugger Enabled", false);
 
         private String setting;
-        private String oldSetting;
         private Object option;
 
-        Setting(String oldSetting, String setting, Object option) {
-            this.oldSetting = oldSetting;
+        Setting(String setting, Object option) {
             this.setting = setting;
             this.option = option;
         }

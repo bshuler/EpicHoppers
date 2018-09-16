@@ -32,7 +32,9 @@ import com.songoda.epichoppers.listeners.InteractListeners;
 import com.songoda.epichoppers.listeners.InventoryListeners;
 import com.songoda.epichoppers.player.PlayerDataManager;
 import com.songoda.epichoppers.utils.Methods;
+import com.songoda.epichoppers.utils.ServerVersion;
 import com.songoda.epichoppers.utils.SettingsManager;
+import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -54,6 +56,8 @@ import java.util.function.Supplier;
 
 public class EpicHoppersPlugin extends JavaPlugin implements EpicHoppers {
     private static CommandSender console = Bukkit.getConsoleSender();
+
+    private ServerVersion serverVersion = ServerVersion.fromPackageName(Bukkit.getServer().getClass().getPackage().getName());
 
     private static EpicHoppersPlugin INSTANCE;
     public References references = null;
@@ -77,14 +81,13 @@ public class EpicHoppersPlugin extends JavaPlugin implements EpicHoppers {
     }
 
     private boolean checkVersion() {
-        int workingVersion = 13;
-        int currentVersion = Integer.parseInt(Bukkit.getServer().getClass()
-                .getPackage().getName().split("\\.")[3].split("_")[1]);
+        int maxVersion = 122; // also supports 1.8 and higher
+        int currentVersion = Integer.parseInt(Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3].split("_")[1]);
 
-        if (currentVersion < workingVersion) {
+        if (currentVersion > maxVersion) {
             Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
                 Bukkit.getConsoleSender().sendMessage("");
-                Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "You installed the 1." + workingVersion + "+ only version of " + this.getDescription().getName() + " on a 1." + currentVersion + " server. Since you are on the wrong version we disabled the plugin for you. Please install correct version to continue using " + this.getDescription().getName() + ".");
+                Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "You installed the legacy (1.8 - 1.12) only version of " + this.getDescription().getName() + " on a 1." + currentVersion + " server. Since you are on the wrong version we disabled the plugin for you. Please install correct version to continue using " + this.getDescription().getName() + ".");
                 Bukkit.getConsoleSender().sendMessage("");
             }, 20L);
             return false;
@@ -303,6 +306,21 @@ public class EpicHoppersPlugin extends JavaPlugin implements EpicHoppers {
             
             levelManager.addLevel(level, costExperiance, costEconomy, radius, amount, filter, teleport, modules);
         }
+    }
+
+    public ServerVersion getServerVersion() {
+        return serverVersion;
+    }
+
+    public boolean isServerVersion(ServerVersion version) {
+        return serverVersion == version;
+    }
+    public boolean isServerVersion(ServerVersion... versions) {
+        return ArrayUtils.contains(versions, serverVersion);
+    }
+
+    public boolean isServerVersionAtLeast(ServerVersion version) {
+        return serverVersion.ordinal() >= version.ordinal();
     }
 
     private void setupConfig() {

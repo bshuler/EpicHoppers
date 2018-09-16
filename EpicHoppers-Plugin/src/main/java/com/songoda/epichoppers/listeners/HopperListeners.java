@@ -5,6 +5,7 @@ import com.songoda.epichoppers.EpicHoppersPlugin;
 import com.songoda.epichoppers.api.hopper.Hopper;
 import com.songoda.epichoppers.utils.Debugger;
 import com.songoda.epichoppers.utils.Methods;
+import com.songoda.epichoppers.utils.ServerVersion;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
@@ -39,6 +40,8 @@ public class HopperListeners implements Listener {
     public void onHop(InventoryMoveItemEvent e) {
         try {
             Inventory source = e.getSource();
+
+            if (!instance.isServerVersionAtLeast(ServerVersion.V1_9)) return;
 
 
             if (!instance.getHopperManager().isHopper(e.getSource().getLocation())) return;

@@ -88,8 +88,9 @@ public class TeleportHandler {
                 player.teleport(location);
                 next = player.getLocation().subtract(0, 0.5, 0).getBlock();
 
+                /*
                 if (instance.getConfig().getBoolean("Main.Sounds Enabled"))
-                    player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 10,10);
+                    player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 10,10); */
                 num++;
             }
             if (num == 1 && teleportFrom.containsKey(hopper.getLocation())) {
@@ -102,8 +103,10 @@ public class TeleportHandler {
                 player.teleport(location);
                 next = player.getLocation().subtract(0, 0.5, 0).getBlock();
 
+                /*
                 if (instance.getConfig().getBoolean("Main.Sounds Enabled"))
                     player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 10,10);
+                    */
                 num ++;
 
             }

@@ -9,11 +9,13 @@ import com.songoda.epichoppers.hopper.EFilter;
 import com.songoda.epichoppers.hopper.EHopper;
 import com.songoda.epichoppers.utils.Debugger;
 import com.songoda.epichoppers.utils.Methods;
+import com.songoda.epichoppers.utils.ServerVersion;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -90,7 +92,7 @@ public class BlockListeners implements Listener {
             Block block = event.getBlock();
             Player player = event.getPlayer();
 
-            if (player.getInventory().getItemInMainHand() == null) return;
+            if (player.getInventory().getItemInHand() == null) return;
 
             handleSyncTouch(event);
 
@@ -134,7 +136,7 @@ public class BlockListeners implements Listener {
     private void handleSyncTouch(BlockBreakEvent e) {
         if (!Methods.isSync(e.getPlayer())) return;
 
-        ItemStack tool = e.getPlayer().getInventory().getItemInMainHand();
+        ItemStack tool = e.getPlayer().getInventory().getItemInHand();
         ItemMeta meta = tool.getItemMeta();
         if (tool.getItemMeta().getLore().size() != 2) return;
 
@@ -142,20 +144,31 @@ public class BlockListeners implements Listener {
 
         if (location.getBlock().getType() != Material.CHEST) return;
 
-        if (e.getBlock().getType() == Material.SHULKER_BOX
-                || e.getBlock().getType() == Material.SPAWNER
+        if (e.getBlock().getType() == Material.MOB_SPAWNER
                 || e.getBlock().getType() == Material.HOPPER
                 || e.getBlock().getType() == Material.DISPENSER) {
             return;
         }
 
         InventoryHolder ih = (InventoryHolder) location.getBlock().getState();
-        if (e.getPlayer().getInventory().getItemInMainHand().getItemMeta().hasEnchant(Enchantment.SILK_TOUCH)) {
+        if (e.getPlayer().getInventory().getItemInHand().getItemMeta().hasEnchant(Enchantment.SILK_TOUCH)) {
             ih.getInventory().addItem(new ItemStack(e.getBlock().getType(), 1, e.getBlock().getData()));
         } else {
             for (ItemStack is : e.getBlock().getDrops())
                 ih.getInventory().addItem(is);
         }
-        e.setDropItems(false);
+        if (instance.isServerVersionAtLeast(ServerVersion.V1_12)) {
+            e.setDropItems(false);
+            return;
+        }
+
+        e.isCancelled();
+        e.getPlayer().getItemInHand().setDurability((short) (e.getPlayer().getItemInHand().getDurability() + 1));
+        if (e.getPlayer().getItemInHand().getDurability() >= e.getPlayer().getItemInHand().getType().getMaxDurability()) {
+            e.getPlayer().getItemInHand().setType(null);
+        }
+        if (e.getExpToDrop() > 0)
+            e.getPlayer().getWorld().spawn(e.getBlock().getLocation(), ExperienceOrb.class).setExperience(e.getExpToDrop());
+        e.getBlock().setType(Material.AIR);
     }
 }

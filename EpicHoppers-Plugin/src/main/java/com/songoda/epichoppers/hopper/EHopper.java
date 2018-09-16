@@ -14,6 +14,7 @@ import com.songoda.epichoppers.player.MenuType;
 import com.songoda.epichoppers.player.PlayerData;
 import com.songoda.epichoppers.utils.Debugger;
 import com.songoda.epichoppers.utils.Methods;
+import com.songoda.epichoppers.utils.ServerVersion;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -83,7 +84,7 @@ public class EHopper implements Hopper {
             perlmeta.setLore(loreperl);
             perl.setItemMeta(perlmeta);
 
-            ItemStack filter = new ItemStack(Material.COMPARATOR, 1);
+            ItemStack filter = new ItemStack(Material.REDSTONE_COMPARATOR, 1);
             ItemMeta filtermeta = filter.getItemMeta();
             filtermeta.setDisplayName(instance.getLocale().getMessage("interface.hopper.filtertitle"));
             ArrayList<String> lorefilter = new ArrayList<>();
@@ -94,7 +95,7 @@ public class EHopper implements Hopper {
             filtermeta.setLore(lorefilter);
             filter.setItemMeta(filtermeta);
 
-            ItemStack crafting = new ItemStack(Material.CRAFTING_TABLE, 1);
+            ItemStack crafting = new ItemStack(Material.WORKBENCH, 1);
             ItemMeta craftingmeta = crafting.getItemMeta();
             craftingmeta.setDisplayName(instance.getLocale().getMessage("interface.hopper.craftingtitle"));
             ArrayList<String> lorecrafting = new ArrayList<>();
@@ -302,7 +303,7 @@ public class EHopper implements Hopper {
             i.setItem(39, Methods.getGlass());
             i.setItem(41, Methods.getGlass());
 
-            ItemStack it = new ItemStack(Material.WHITE_STAINED_GLASS_PANE, 1);
+            ItemStack it = new ItemStack(Material.STAINED_GLASS_PANE, 1);
             ItemMeta itm = it.getItemMeta();
             itm.setDisplayName(instance.getLocale().getMessage("interface.filter.whitelist"));
             it.setItemMeta(itm);
@@ -319,8 +320,7 @@ public class EHopper implements Hopper {
                 }
             }
 
-            it = new ItemStack(Material.BLACK_STAINED_GLASS_PANE, 1);
-            itm = it.getItemMeta();
+            it = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 13);            itm = it.getItemMeta();
             itm.setDisplayName(instance.getLocale().getMessage("interface.filter.blacklist"));
             it.setItemMeta(itm);
             int[] blackSlots = {27, 28, 36, 37, 45, 46};
@@ -482,8 +482,10 @@ public class EHopper implements Hopper {
                 player.sendMessage(instance.getLocale().getMessage("event.upgrade.maxed", level.getLevel()));
             }
             Location loc = location.clone().add(.5, .5, .5);
-            player.getWorld().spawnParticle(org.bukkit.Particle.valueOf(instance.getConfig().getString("Main.Upgrade Particle Type")), loc, 200, .5, .5, .5);
-
+            if (instance.isServerVersionAtLeast(ServerVersion.V1_9)) {
+                player.getWorld().spawnParticle(org.bukkit.Particle.valueOf(instance.getConfig().getString("Main.Upgrade Particle Type")), loc, 200, .5, .5, .5);
+            }
+            /*
             if (instance.getConfig().getBoolean("Main.Sounds Enabled")) {
                 if (instance.getLevelManager().getHighestLevel() != level) {
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6F, 15.0F);
@@ -494,7 +496,7 @@ public class EHopper implements Hopper {
                     Bukkit.getScheduler().scheduleSyncDelayedTask(instance, () -> player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1.2F, 35.0F), 5L);
                     Bukkit.getScheduler().scheduleSyncDelayedTask(instance, () -> player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1.8F, 35.0F), 10L);
                 }
-            }
+            } */
         } catch (Exception ex) {
             Debugger.runReport(ex);
         }

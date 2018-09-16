@@ -75,7 +75,11 @@ public class Methods {
             location.setX(location.getX() + .5);
             location.setY(location.getY() + .5);
             location.setZ(location.getZ() + .5);
+            if (!instance.isServerVersionAtLeast(ServerVersion.V1_9)) {
                 p.getWorld().spawnParticle(org.bukkit.Particle.valueOf(instance.getConfig().getString("Main.Upgrade Particle Type")), location, 200, .5, .5, .5);
+            } else {
+                p.getWorld().playEffect(location, org.bukkit.Effect.valueOf(instance.getConfig().getString("Main.Upgrade Particle Type")), 1, 0);
+            }
         } catch (Exception e) {
             Debugger.runReport(e);
         }

@@ -4,6 +4,7 @@ import com.songoda.arconix.plugin.Arconix;
 import com.songoda.epichoppers.EpicHoppersPlugin;
 import com.songoda.epichoppers.api.hopper.Hopper;
 import com.songoda.epichoppers.api.hopper.levels.modules.Module;
+import com.songoda.epichoppers.utils.ServerVersion;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -41,7 +42,9 @@ public class ModuleBlockBreak implements Module {
         if (tick < amount) return;
         Block above = block.getRelative(0, 1, 0);
         if (above.getType() != Material.AIR && !EpicHoppersPlugin.getInstance().getConfig().getStringList("Main.BlockBreak Blacklisted Blocks").contains(above.getType().name())) {
-            above.getWorld().playSound(above.getLocation(), Sound.BLOCK_STONE_BREAK, 1F, 1F);
+            if (EpicHoppersPlugin.getInstance().isServerVersionAtLeast(ServerVersion.V1_9)) {
+                above.getWorld().playSound(above.getLocation(), Sound.BLOCK_STONE_BREAK, 1F, 1F);
+            }
             Location locationAbove = above.getLocation();
             locationAbove.add(.5, .5, .5);
 
