@@ -64,6 +64,6 @@ public class ModuleBlockBreak implements Module {
 
     @Override
     public String getDescription() {
-        return EpicHoppersPlugin.getInstance().getLocale().getMessage("interface.hopper.blockbreak", true);
+        return EpicHoppersPlugin.getInstance().getLocale().getMessage("interface.hopper.blockbreak", amount);
     }
 }
