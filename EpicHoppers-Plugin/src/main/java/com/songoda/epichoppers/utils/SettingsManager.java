@@ -221,8 +221,15 @@ public class SettingsManager implements Listener {
         o19("Interfaces.Glass Type 1", 7),
         o20("Interfaces.Glass Type 2", 11),
         o21("Interfaces.Glass Type 3", 3),
-        o22("System.Debugger Enabled", false);
 
+        DATABASE_PASSWORD("-", "Database.Password", "PUT_PASSWORD_HERE"),
+        DATABASE_NAME("-", "Database.Database Name", "EpicHoppers"),
+        DATABASE_USERNAME("-", "Database.Username", "PUT_USERNAME_HERE"),
+        DATABASE_PORT("-", "Database.Port", 3306),
+        DATABASE_IP("-", "Database.IP", "127.0.0.1"),
+        DATABASE_SUPPORT("-", "Database.Activate Mysql Support", false),
+        
+        o22("System.Debugger Enabled", false);
         private String setting;
         private Object option;
 
