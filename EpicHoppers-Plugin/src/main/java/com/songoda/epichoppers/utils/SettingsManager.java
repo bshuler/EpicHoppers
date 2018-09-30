@@ -222,14 +222,23 @@ public class SettingsManager implements Listener {
         o20("Interfaces.Glass Type 2", 11),
         o21("Interfaces.Glass Type 3", 3),
 
-        DATABASE_PASSWORD("Database.Password", "PUT_PASSWORD_HERE"),
-        DATABASE_NAME("Database.Database Name", "EpicHoppers"),
-        DATABASE_USERNAME("Database.Username", "PUT_USERNAME_HERE"),
-        DATABASE_PORT("Database.Port", 3306),
-        DATABASE_IP("Database.IP", "127.0.0.1"),
-        DATABASE_SUPPORT("Database.Activate Mysql Support", false),
+        o16("Rainbow-Glass", "Interfaces.Replace Glass Type 1 With Rainbow Glass", false),
+        o17("ECO-Icon", "Interfaces.Economy Icon", "SUNFLOWER"),
+        o18("XP-Icon", "Interfaces.XP Icon", "EXPERIENCE_BOTTLE"),
+        o19("Glass-Type-1", "Interfaces.Glass Type 1", 7),
+        o20("Glass-Type-2", "Interfaces.Glass Type 2", 11),
+        o21("Glass-Type-3", "Interfaces.Glass Type 3", 3),
+
+        DATABASE_SUPPORT("-", "Database.Activate Mysql Support", false),
+        DATABASE_IP("-", "Database.IP", "127.0.0.1"),
+        DATABASE_PORT("-", "Database.Port", 3306),
+        DATABASE_NAME("-", "Database.Database Name", "EpicHoppers"),
+        DATABASE_USERNAME("-", "Database.Username", "PUT_USERNAME_HERE"),
+        DATABASE_PASSWORD("-", "Database.Password", "PUT_PASSWORD_HERE"),
         
-        o22("System.Debugger Enabled", false);
+        LANGUGE_MODE("-", "System.Language Mode", "en_US"),
+        o22("Debug-Mode", "System.Debugger Enabled", false);
+
         private String setting;
         private Object option;
 
