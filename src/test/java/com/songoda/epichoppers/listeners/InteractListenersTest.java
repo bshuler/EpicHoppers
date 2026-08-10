@@ -228,6 +228,27 @@ class InteractListenersTest {
     }
 
     @Test
+    void clickingAHopperSwallowsAnExceptionWhenNoLevelsAreRegistered() {
+        // Same reachable NPE as BlockListeners' equivalent test:
+        // EHopperManager#getHopper auto-vivifies a new EHopper seeded with
+        // LevelManager#getLowestLevel(), which throws when every level has
+        // been cleared via the real ELevelManager#clear() API. The
+        // exception surfaces straight out of
+        // instance.getHopperManager().getHopper(e.getClickedBlock()),
+        // caught by onBlockInteract's own catch-all.
+        ((com.songoda.epichoppers.hopper.levels.ELevelManager) plugin.getLevelManager()).clear();
+        PlayerMock player = server.addPlayer();
+        player.addAttachment(plugin, "EpicHoppers.overview", true);
+        Block block = world.getBlockAt(0, 5, 0);
+        block.setType(Material.HOPPER);
+
+        PlayerInteractEvent event = leftClick(player, block, new ItemStack(Material.AIR));
+        listener.onBlockInteract(event);
+
+        assertFalse(event.isCancelled());
+    }
+
+    @Test
     void clickingAHopperWithUpgradingAllowedOpensTheOverviewMenu() {
         PlayerMock player = server.addPlayer();
         player.addAttachment(plugin, "EpicHoppers.overview", true);

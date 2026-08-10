@@ -172,6 +172,41 @@ See `PLAN.md` for the version matrix and per-version build status.
   `./gradlew clean shadowJar -PpaperApiVersion=<coord>` (see `PLAN.md`
   milestone 4 for the exact coordinates used per MC version).
 
+## Testing
+
+```bash
+./gradlew test                       # JUnit 5, runs the whole suite
+./gradlew jacocoTestReport            # XML+HTML coverage report (also runs after `test` automatically)
+./gradlew jacocoTestCoverageVerification   # enforces 100% line coverage on the included-scope classes
+./gradlew check                       # test + jacocoTestCoverageVerification
+```
+
+- All server-facing behavior is tested through MockBukkit
+  (`org.mockbukkit.mockbukkit:mockbukkit-v26.1.2:4.115.0`). The test
+  classpath is deliberately pinned to `paper-api:26.1.2.build.74-stable` —
+  one calendar version behind main's `paperApiVersion` — because
+  MockBukkit-v26.1.2 bundles registry/tag JSON baked for that exact Paper
+  version; a newer `paper-api` leaking onto the test classpath throws
+  `InternalDataLoadException` at `ServerMock` construction. See
+  `build.gradle.kts`'s `testPaperApiVersion` and the `resolutionStrategy.force`
+  block for the exact mechanism.
+- Coverage report: `build/reports/jacoco/test/html/index.html`.
+- `jacocoTestCoverageVerification` enforces a **100% line-coverage minimum**
+  on everything *not* in `build.gradle.kts`'s `jacocoExcludedClasses` list.
+  That list currently excludes 15 classes (`EpicHoppersPlugin`, `EHopper`,
+  `HopHandler`, `TeleportHandler`, `Methods`, `CommandGive`,
+  `InventoryListeners`, `ModuleSuction`, `BlockListeners`,
+  `EnchantmentHandler`, `HopperListeners`, `ModuleAutoCrafting`, `Locale`,
+  `StorageMysql`, `MySQLDatabase`) — each mixes genuinely-tested logic with
+  code that isn't realistically testable (a live-MySQL dependency, a
+  defensive `catch (Exception e) { Debugger.runReport(e); }` block, or dead
+  code from a found-but-not-fixed bug). See `PLAN.md` "Coverage exclusions"
+  and "Bugs found" for the one-sentence reason behind every exclusion and
+  every bug.
+- Tests assert real behavior (state changes, return values, exceptions) —
+  never "constructs without throwing" as the only assertion, and never
+  reflection hacks to inflate the coverage number.
+
 ## Porting notes for whoever touches this next
 
 - `SettingsManager.onInventoryClick` used `event.getInventory().getTitle()`,

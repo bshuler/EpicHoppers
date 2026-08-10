@@ -82,6 +82,7 @@ public class InventoryListeners implements Listener {
 
             event.setCancelled(true);
             Hopper hopper = playerData.getLastHopper();
+            if (hopper == null) return;
             if (event.getCurrentItem().getItemMeta().hasDisplayName()
                     && event.getCurrentItem().getItemMeta().getDisplayName().equals(instance.getLocale().getMessage("interface.hopper.perltitle"))
                     && (hopper.getLevel().isTeleport() || player.hasPermission("EpicHoppers.Teleport"))) {
@@ -220,12 +221,16 @@ public class InventoryListeners implements Listener {
             PlayerData playerData = instance.getPlayerDataManager().getPlayerData(player);
             if (playerData.getInMenu() == MenuType.CRAFTING) {
                 Hopper hopper = instance.getHopperManager().getHopperFromPlayer(player);
-                ItemStack item = event.getInventory().getItem(13);
-                hopper.setAutoCrafting(item == null ? Material.AIR : item.getType());
+                if (hopper != null) {
+                    ItemStack item = event.getInventory().getItem(13);
+                    hopper.setAutoCrafting(item == null ? Material.AIR : item.getType());
+                }
             }
             if (playerData.getInMenu() == MenuType.FILTER) {
                 Hopper hopper = instance.getHopperManager().getHopperFromPlayer(player);
-                ((EHopper) hopper).compile(player);
+                if (hopper != null) {
+                    ((EHopper) hopper).compile(player);
+                }
             }
             if (playerData.getInMenu() != MenuType.NOT_IN) {
                 Hopper hopper = instance.getHopperManager().getHopperFromPlayer(player);

@@ -437,6 +437,10 @@ public class EpicHoppersPlugin extends JavaPlugin implements EpicHoppers {
         return settingsManager;
     }
 
+    public YamlDataFile getHooksFile() {
+        return hooksFile;
+    }
+
     public PlayerDataManager getPlayerDataManager() {
         return playerDataManager;
     }

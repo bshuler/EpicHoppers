@@ -270,3 +270,120 @@ against this plugin, not assumed from the sibling repos:
   1Password SSH agent. If signing fails with no human at the keyboard, the
   prepared commit message is appended to the session scratchpad's
   `EpicHoppers-commit-msg.txt` instead of being force-committed unsigned.
+
+## Phase 2 — Test coverage + Folia (this pass)
+
+### Test coverage
+
+- JUnit 5 + JaCoCo wired into `build.gradle.kts`: `./gradlew test` runs the
+  suite, `finalizedBy(jacocoTestReport)` always regenerates the XML+HTML
+  report, and `jacocoTestCoverageVerification` enforces the bar below on
+  `tasks.check`. All server-facing behavior is tested through MockBukkit
+  (`org.mockbukkit.mockbukkit:mockbukkit-v26.1.2:4.115.0`, pinned to Paper
+  API `26.1.2.build.74-stable` on the test classpath only — see
+  `build.gradle.kts` comments for why this differs from main's newer
+  `paperApiVersion`).
+- **404 tests, 0 failures, 0 errors, 0 skipped.**
+- **Included scope: 31 of 46 source files with executable lines, 100% line
+  coverage (666/666 lines), enforced by a `LINE`/`COVEREDRATIO` minimum of
+  `1.00` in `jacocoTestCoverageVerification`.** Verified green via
+  `./gradlew clean check`.
+- Repo-wide (including the 15 excluded classes below, each of which is still
+  substantially tested, just not to 100%): 1996/2230 lines = **89.5%**.
+
+### Coverage exclusions
+
+Each excluded class mixes genuinely-tested logic with code that is not
+realistically testable via MockBukkit/JUnit. One honest sentence per class:
+
+| Class | Missed lines | Why excluded |
+|---|---|---|
+| `EpicHoppersPlugin` | 36 | `onEnable()`'s storage-rehydration closure (lines 113–163) is a lambda handed to `runTaskLater` that reads persisted hoppers/boosts back out of `Storage`/`StorageRow` — exercising it faithfully needs a populated on-disk `data.yml` in the exact legacy row format, not just a mocked scheduler tick; line 205 is the `StorageMysql` branch of `checkStorage()` (see below); line 226 is a bare `continue;` that is the sole body of an already-fully-covered `if` — see the `ModuleSuction` entry for the same javac/JaCoCo line-attribution quirk. |
+| `StorageMysql` | 56 (100% of the class) | Every method opens a live JDBC connection to a real MySQL server; there is no MySQL server in this environment and mocking `java.sql.*` down to the row level would test the mock, not the class. |
+| `MySQLDatabase` | 12 (100% of the class) | Same reason as `StorageMysql` — a thin JDBC connection-pool wrapper with no logic worth testing independently of a live database. |
+| `TeleportHandler` | 33 | `tpPlayer()`'s chain-walking loop and the "teleport back" branch are dead code given a real, found-but-not-fixed bug (see "Bugs found" below) — the loop always breaks on its first iteration before ever calling `player.teleport(...)`. The remaining lines are the constructor's defensive catch block. |
+| `HopHandler` | 32 | `hopperCleaner()`'s per-key "is this still a hopper" loop (lines 45–56) is dead code given a real, found-but-not-fixed bug (see "Bugs found" below). The rest are defensive catch blocks in the constructor, `hopperRunner()`, `doBlacklist()`, `addItem()`, and `canHop()`. |
+| `EHopper` | 24 | All defensive catch blocks around GUI-building/upgrade/sync methods, plus two genuinely-testable-but-deferred branches (a multi-viewer overview-conflict `closeInventory()` call, and the Vault-installed economy-purchase branch of `upgrade("ECO", ...)`) already noted as intentionally out of scope in `EHopperTest`'s class doc comment. |
+| `Methods` | 16 | All defensive catch blocks, including one nested fallback catch whose primary path is already covered by other tests. |
+| `CommandGive` | 6 | The `else if (args.length == 1)` branch (lines 33–37) is unreachable dead code by construction — the method's leading `if (args.length <= 2) return SYNTAX_ERROR;` guarantees `args.length >= 3` everywhere beneath it, confirmed and tested via `singleArgumentIsASyntaxErrorBeforeTheSelfGiveBranchIsEverReached`. Lines 30–31 (`Bukkit.getPlayer(args[1]) == null` immediately after `getPlayerExact` already succeeded) are a hard-to-construct MockBukkit edge case, accepted as a small gap. |
+| `InventoryListeners` | 4 | Two defensive catch blocks in two different methods. |
+| `ModuleSuction` | 4 | Line 43 is a bare `continue;` as the sole body of an already-fully-covered multi-condition `if` — confirmed via the JaCoCo HTML report's per-line coverage markers that the condition line is `fc` (fully covered, both branches exercised) while the `continue;` line itself is `nc` (not covered); this is a javac/JaCoCo debug-line-table artifact for jump-only if-bodies, not a real behavioral gap. Line 56 is the WildStacker soft-dependency branch, which needs the real plugin installed to exercise. Lines 95–96 are `canMove()`'s catch block. |
+| `BlockListeners` | 3 | Defensive catch block in the chunk hopper-count helper. |
+| `EnchantmentHandler` | 3 | Defensive catch block in the Sync Touch book-encoding method. |
+| `HopperListeners` | 2 | Defensive catch block in `onHop()` — the cancel-branch above it is already covered. |
+| `ModuleAutoCrafting` | 2 | Defensive catch block in the inventory-space check. |
+| `Locale` | 1 | A static-ordering guard (`throw new IllegalStateException(...)` if a `Locale` is constructed before `Locale.init(JavaPlugin)` sets the static `plugin` field) that every real code path already prevents by construction. |
+
+### Bugs found while writing tests
+
+- **Fixed**: `InventoryListenersTest.onInventoryClickAllowsTheCraftingSlotThirteenButCancelsEverythingElse`
+  was passing for the wrong reason — `EHopper.crafting()` places an
+  AIR-typed `ItemStack` in slot 13 by default, which (Mock)Bukkit normalizes
+  to a `null` inventory slot, so `InventoryListeners.onInventoryClick()`'s
+  very first `event.getCurrentItem() == null` guard short-circuited before
+  ever reaching the slot-13 passthrough logic the test meant to exercise.
+  Fixed by calling `hopper.setAutoCrafting(Material.TORCH)` before opening
+  the crafting menu so slot 13 holds a real item.
+- **Found, deliberately not fixed** (behavior-changing, no live server
+  available to confirm original intent, low current blast radius):
+  - `HopHandler.hopperCleaner()` unconditionally calls
+    `instance.getConfig().createSection("data")`, which Bukkit always
+    resets to a brand-new empty section — wiping any existing `data.*`
+    config state (including `data.sync.*`) on every single run and making
+    the method's own per-key "is this still a hopper" cleanup loop
+    unreachable dead code. See `HopHandlerTest.
+    hopperCleanerWipesTheEntireDataSectionOnEveryRunBecauseCreateSectionAlwaysResetsIt`.
+  - `TeleportHandler.tpPlayer()`'s chain-walking `while` loop computes
+    `nextHopper` from the hopper's own location on its first pass, so
+    `nextHopper == hopper` is trivially true immediately and the loop
+    always `break`s before ever calling `player.teleport(...)` — the method
+    never actually moves a player, for any hopper chain, as currently
+    written. See the class doc comment in `TeleportHandlerTest`.
+  - `CommandGive`'s `else if (args.length == 1)` self-give branch is
+    unreachable dead code by construction (see the exclusions table above).
+
+### Folia
+
+**Verdict: NOT safely achievable in this pass — `folia-supported` is NOT
+added to `plugin.yml`.**
+
+Concrete blockers, confirmed by re-reading the scheduler call sites
+(`grep -rn "getScheduler()" src/main/java`):
+
+- `HopHandler.hopperRunner()` — a single **global** repeating task
+  (`Bukkit.getScheduler().scheduleSyncRepeatingTask`, not a region-aware
+  scheduler) that, every N ticks, iterates *every hopper on the entire
+  server* and synchronously reads/writes both the hopper's own block state
+  and an arbitrarily-distant "synced" destination block
+  (`hopper.getSyncedBlock()`) in the same pass. Folia's region-threading
+  model exists specifically to forbid exactly this: synchronous block
+  access across chunk/region boundaries from a single non-region-owned
+  thread.
+- `TeleportHandler.teleportRunner()` — the same global-scheduler pattern,
+  iterating `Bukkit.getOnlinePlayers()` (players can be in any region) and
+  calling the synchronous `player.teleport(location)` to a hopper-chain
+  destination that can be in a completely different chunk than the
+  player's current region. Folia requires cross-region teleports to go
+  through `teleportAsync` with an explicit region-reassignment, not a
+  synchronous call from a global task.
+- `EpicHoppersPlugin`'s periodic `saveToFile()`
+  (`Bukkit.getScheduler().scheduleSyncRepeatingTask`, every 6000 ticks)
+  iterates every hopper server-wide and calls
+  `hopper.getLocation().getChunk()` from the global-scheduler thread —
+  lower risk since it's a read for serialization rather than a block
+  mutation, but the same unrestricted cross-region access pattern.
+- **Fundamental architecture problem, not a small fix**: the plugin's core
+  feature is hopper-to-hopper "sync" — transferring items or teleporting
+  players between two hoppers/chests that the player is free to place
+  anywhere on the server, in different chunks that Folia may assign to
+  different region threads. Making this genuinely region-safe would require
+  re-architecting the entire hop/teleport pipeline into cross-region
+  scheduling (dispatch keyed by whichever region owns each hopper's chunk,
+  plus two-phase read-on-source/write-on-destination coordination for any
+  hop whose endpoints land in different regions, plus async player
+  teleportation with a completion callback before continuing any chain
+  logic) — a rewrite of the plugin's central mechanic, not the "small,
+  low-risk change" the brief's bar for flipping the flag calls for. This
+  matches (and confirms, independently re-derived) this repo's own
+  `CLAUDE.md` "Platforms" section, which already flagged Folia as untested
+  for exactly these two classes.

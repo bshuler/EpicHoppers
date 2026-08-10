@@ -229,6 +229,28 @@ class BlockListenersTest {
     }
 
     @Test
+    void onBlockBreakSwallowsAnExceptionWhenNoLevelsAreRegistered() {
+        // EHopperManager#getHopper auto-vivifies an EHopper for any
+        // previously-unregistered location, seeded with
+        // LevelManager#getLowestLevel() - which is a genuine reachable NPE
+        // (TreeMap#firstEntry() returns null on an empty map, and
+        // ELevelManager#getLowestLevel unconditionally calls .getValue() on
+        // it) whenever every level has been cleared, e.g. via the real
+        // ELevelManager#clear() API during a config reload race. That
+        // exception surfaces from the getHopperManager().getHopper(block)
+        // call itself, caught by this method's own catch-all.
+        ((com.songoda.epichoppers.hopper.levels.ELevelManager) plugin.getLevelManager()).clear();
+        PlayerMock player = server.addPlayer();
+        Block block = world.getBlockAt(0, 5, 0);
+        block.setType(Material.HOPPER);
+
+        BlockBreakEvent event = new BlockBreakEvent(block, player);
+        listener.onBlockBreak(event);
+
+        assertFalse(event.isCancelled());
+    }
+
+    @Test
     void onBlockBreakDropsFilterListItemsAndResetsThePlayersSyncType() {
         PlayerMock player = server.addPlayer();
         plugin.getPlayerDataManager().getPlayerData(player).setSyncType(com.songoda.epichoppers.player.SyncType.REGULAR);

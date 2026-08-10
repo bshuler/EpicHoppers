@@ -190,6 +190,16 @@ class InventoryListenersTest {
         PlayerMock player = server.addPlayer();
         Location loc = new Location(world, 0, 64, 0);
         EHopper hopper = hopperAtLevel(1, loc);
+        // slot 13 must actually hold a real item, not the AIR-typed
+        // ItemStack that crafting() puts there when no auto-crafting
+        // material is set: an AIR ItemStack in an inventory slot is
+        // normalized to a null slot by (Mock)Bukkit, and
+        // onInventoryClick()'s very first check
+        // ("inv == null || event.getCurrentItem() == null return;")
+        // would then short-circuit before ever reaching the
+        // "slot == 13 -> return" branch this test means to exercise -
+        // making the assertion below pass for the wrong reason.
+        hopper.setAutoCrafting(Material.TORCH);
         plugin.getHopperManager().addHopper(loc, hopper);
         hopper.crafting(player);
 
@@ -261,6 +271,71 @@ class InventoryListenersTest {
         // The trigger-cycle branch re-opens overview() and returns before
         // player.closeInventory() - the menu must still be open afterwards.
         assertEquals(MenuType.OVERVIEW, plugin.getPlayerDataManager().getPlayerData(player).getInMenu());
+    }
+
+    @Test
+    void onInventoryClickRightClickOnPerlIconAdvancesSneakToWalkOn() {
+        PlayerMock player = server.addPlayer();
+        Location loc = new Location(world, 0, 64, 0);
+        EHopper hopper = hopperAtLevel(1, loc);
+        plugin.getHopperManager().addHopper(loc, hopper);
+        player.addAttachment(plugin, "epichoppers.overview", true);
+        player.addAttachment(plugin, "EpicHoppers.Teleport", true);
+        hopper.setTeleportTrigger(TeleportTrigger.SNEAK);
+        hopper.overview(player);
+
+        InventoryClickEvent event = click(player, 4, ClickType.RIGHT);
+        listener.onInventoryClick(event);
+
+        assertEquals(TeleportTrigger.WALK_ON, hopper.getTeleportTrigger());
+    }
+
+    @Test
+    void onInventoryClickRightClickOnPerlIconAdvancesWalkOnBackToDisabled() {
+        PlayerMock player = server.addPlayer();
+        Location loc = new Location(world, 0, 64, 0);
+        EHopper hopper = hopperAtLevel(1, loc);
+        plugin.getHopperManager().addHopper(loc, hopper);
+        player.addAttachment(plugin, "epichoppers.overview", true);
+        player.addAttachment(plugin, "EpicHoppers.Teleport", true);
+        hopper.setTeleportTrigger(TeleportTrigger.WALK_ON);
+        hopper.overview(player);
+
+        InventoryClickEvent event = click(player, 4, ClickType.RIGHT);
+        listener.onInventoryClick(event);
+
+        assertEquals(TeleportTrigger.DISABLED, hopper.getTeleportTrigger());
+    }
+
+    /**
+     * Real bug found while writing this test (fixed, see PLAN.md):
+     * PlayerData#getLastHopper() defaults to null until EHopper#overview(
+     * Player) populates it, so a player whose menu state was somehow set to
+     * OVERVIEW without going through overview() first (e.g. a partially
+     * failed menu open) used to NPE at hopper.getLevel() inside this
+     * branch's own precondition check, swallowed only by the method's
+     * broad outer catch-all. Added an explicit `if (hopper == null) return;`
+     * guard right after the assignment, matching the null-check style
+     * already used elsewhere in this same class (see onClose's third
+     * branch) - the click is still cancelled (nothing else in this menu
+     * makes sense to act on) but no longer relies on an exception to do so.
+     */
+    @Test
+    void onInventoryClickCancelsAndDoesNothingElseWhenTheOverviewMenuHasNoLastHopper() {
+        PlayerMock player = server.addPlayer();
+        plugin.getPlayerDataManager().getPlayerData(player).setInMenu(MenuType.OVERVIEW);
+        Inventory top = Bukkit.createInventory(null, 27);
+        ItemStack perl = new ItemStack(Material.ENDER_PEARL);
+        ItemMeta meta = perl.getItemMeta();
+        meta.setDisplayName(plugin.getLocale().getMessage("interface.hopper.perltitle"));
+        perl.setItemMeta(meta);
+        top.setItem(4, perl);
+        player.openInventory(top);
+
+        InventoryClickEvent event = click(player, 4, ClickType.LEFT);
+        listener.onInventoryClick(event);
+
+        assertTrue(event.isCancelled());
     }
 
     @Test
@@ -476,6 +551,28 @@ class InventoryListenersTest {
         assertEquals(Material.AIR, player.getItemOnCursor().getType());
     }
 
+    /**
+     * A whitelisted material overwrites slot 0's whitelist-placeholder pane
+     * with a plain `new ItemStack(m)` that carries no display name at all,
+     * so it matches none of the three filter-category titles - a real,
+     * reachable way to hit doFilter's "unrecognized item in a category slot"
+     * branch, which un-cancels the click and lets it through.
+     */
+    @Test
+    void onInventoryClickInsideFilterMenuOnAnAlreadyFilteredItemAllowsTheClickThrough() {
+        PlayerMock player = server.addPlayer();
+        Location loc = new Location(world, 0, 64, 0);
+        EHopper hopper = hopperAtLevel(1, loc);
+        plugin.getHopperManager().addHopper(loc, hopper);
+        hopper.getFilter().getWhiteList().add(Material.DIAMOND);
+        openFilterMenu(player, hopper);
+
+        InventoryClickEvent event = click(player, 0, ClickType.LEFT);
+        listener.onInventoryClick(event);
+
+        assertFalse(event.isCancelled());
+    }
+
     @Test
     void onInventoryClickInsideFilterMenuOnAnUnrelatedIconAllowsTheClickThrough() {
         PlayerMock player = server.addPlayer();
@@ -602,6 +699,33 @@ class InventoryListenersTest {
         listener.onClose(event);
 
         assertNull(hopper.getLastPlayer());
+    }
+
+    /**
+     * Real bug found while writing this test (fixed, see PLAN.md):
+     * PlayerData#getInMenu() can be CRAFTING while
+     * HopperManager#getHopperFromPlayer(Player) returns null (no registered
+     * hopper has this player as its lastPlayer) - e.g. the hopper block was
+     * broken by someone else while this player still had the crafting menu
+     * open. hopper.setAutoCrafting(...) used to throw an NPE here, which the
+     * method's outer catch-all swallowed - but that skipped the trailing
+     * playerData.setInMenu(MenuType.NOT_IN) reset in the same try block,
+     * permanently stranding the player's menu state at CRAFTING. Wrapped
+     * the branch body in `if (hopper != null)`, matching the null-check
+     * style the method's own third branch already used, so the reset now
+     * always runs.
+     */
+    @Test
+    void onCloseResetsMenuStateWhenTheCraftingMenusHopperIsGone() {
+        PlayerMock player = server.addPlayer();
+        plugin.getPlayerDataManager().getPlayerData(player).setInMenu(MenuType.CRAFTING);
+        Inventory top = Bukkit.createInventory(null, 27);
+        player.openInventory(top);
+
+        InventoryCloseEvent event = new InventoryCloseEvent(player.getOpenInventory());
+        listener.onClose(event);
+
+        assertEquals(MenuType.NOT_IN, plugin.getPlayerDataManager().getPlayerData(player).getInMenu());
     }
 
     @Test
