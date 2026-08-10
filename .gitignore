@@ -10,3 +10,8 @@ target/
 EpicHoppers-API/EpicHoppers-API\.iml
 
 EpicHoppers-Plugin/EpicHoppers-Plugin\.iml
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar

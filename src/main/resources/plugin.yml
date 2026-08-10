@@ -1,0 +1,13 @@
+name: EpicHoppers
+description: EpicHoppers
+main: com.songoda.epichoppers.EpicHoppersPlugin
+softdepend: [WildStacker, Vault]
+version: ${version}
+author: Songoda
+api-version: "26.2"
+commands:
+  epichoppers:
+    description: View information on this plugin.
+    default: true
+    aliases: [eh]
+    usage: /eh

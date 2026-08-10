@@ -209,3 +209,31 @@ See `PLAN.md` for the version matrix and per-version build status.
   `compileOnly` and does nothing if WildStacker isn't installed. Unlike the
   9 protection hooks, this one has a live, current Maven coordinate, so it
   was repointed rather than relocated to `legacy-hooks/`.
+- Two call sites used the legacy 3-argument `ItemStack(Material, int, short)`
+  / `(Material, int, byte)` constructor together with `Block#getData()` or a
+  hand-computed byte data value: `BlockListeners`'s silk-touch harvest
+  (`new ItemStack(e.getBlock().getType(), 1, e.getBlock().getData())`) and
+  `SettingsManager.openSettingsManager`'s category icon
+  (`new ItemStack(Material.WHITE_WOOL, 1, (byte) (slot - 9))`). Block
+  data-value subtypes don't exist in modern Bukkit's material system, so
+  both were simplified to the 2-argument `ItemStack(Material, int)`
+  constructor. The `SettingsManager` one already carried a pre-existing
+  `//ToDo: Make this function as it was meant to.` comment marking that
+  category-icon behavior as already non-functional in the original 2017
+  source — left as a `//ToDo`, not a regression introduced by this port.
+- `ConfigWrapper` (Arconix) is replaced by a small new hand-written
+  `utils/YamlDataFile` class (constructor `(JavaPlugin, String fileName)`,
+  `getConfig()`/`saveConfig()`) rather than three separate ad-hoc
+  replacements, since `Storage`'s `dataFile`, `SettingsManager`'s `defs`, and
+  `EpicHoppersPlugin`'s `hooksFile` all only ever call `getConfig()`/
+  `saveConfig()` on their respective config-wrapper field — one reusable
+  class covers all three call sites with no other code changes needed.
+- `plugin.yml`'s `softdepend` originally listed all 9 now-relocated
+  protection plugins plus `WildStacker`/`Vault`; trimmed down to
+  `[WildStacker, Vault]` — the two that still have live integration code —
+  since softdepend on a plugin whose hook was relocated to `legacy-hooks/`
+  is stale metadata, not a real dependency. Also switched `version: 3.1` to
+  the `${version}` Gradle-templated placeholder to match `build.gradle.kts`'s
+  `processResources` filtering (already wired for this token from an earlier
+  pass) instead of a hardcoded literal that would drift from
+  `gradle.properties`'s `pluginVersion`.

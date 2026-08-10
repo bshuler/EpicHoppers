@@ -32,40 +32,57 @@ corresponding `paper-api` still allows it; recorded per-row below.
       branch (`gh repo edit bshuler/EpicHoppers --default-branch main`).
       `master` and `Legacy` branches left intact (not deleted).
 
-### 2. Modern build (latest Paper API)
+### 2. Modern build (latest Paper API) — DONE
 
-- [ ] Replace the broken two-module Maven layout (`pom.xml` with no
+- [x] Replaced the broken two-module Maven layout (`pom.xml` with no
       `<modules>` despite `EpicHoppers-API`/`EpicHoppers-Plugin` being
       separate trees) with one consolidated Gradle 9.x project.
-- [ ] `paper-api` at the latest resolvable version (queried live from
+- [x] `paper-api` at the latest resolvable version (queried live from
       `fill.papermc.io`/`repo.papermc.io` maven-metadata — **26.2** /
       `26.2.build.111-stable` at time of writing, confirmed identical to the
       version `EpicFurnaces` used a short time earlier in the same session;
       do not hardcode this without re-checking, MC is calendar-versioned).
-- [ ] Java 25 toolchain, `com.gradleup.shadow`, `foojay-resolver-convention`.
-- [ ] Remove Arconix/`org.json.simple`/NMS version-sniffing (see `CLAUDE.md`
-      table); fix `Inventory.getTitle()` (2 sites in `SettingsManager`) and
+- [x] Java 25 toolchain, `com.gradleup.shadow`, `foojay-resolver-convention`.
+- [x] Removed Arconix/`org.json.simple`/NMS version-sniffing (see `CLAUDE.md`
+      table); fixed `Inventory.getTitle()` (2 sites in `SettingsManager`) and
       `Player#getItemInHand()` (`Methods.isSync`, `EntityListeners.onDrop`).
-- [ ] Repoint `WildStackerAPI` from the dead `xyz.wildseries` package (which
+      Also fixed two legacy `ItemStack(Material, int, short/byte)` +
+      `Block#getData()` call sites (`BlockListeners`'s silk-touch harvest,
+      `SettingsManager`'s category icon — the latter already had a
+      pre-existing `//ToDo` marking that behavior as non-functional, left as
+      a `//ToDo` since restoring it is out of scope for this port) since
+      block data-value subtypes no longer exist in modern Bukkit's material
+      system.
+- [x] Repoint `WildStackerAPI` from the dead `xyz.wildseries` package (which
       also had *no* Maven coordinate at all in the original `pom.xml` — a
       pre-existing build gap, not just a dead dependency) to the live
       `com.bgsoftware:WildStackerAPI:2026.2` coordinate.
-- [ ] Fix legacy `com.mysql.jdbc.Driver` string in `MySQLDatabase.java` to
+- [x] Fix legacy `com.mysql.jdbc.Driver` string in `MySQLDatabase.java` to
       `com.mysql.cj.jdbc.Driver`.
-- [ ] Correct `Setting.o7`'s `Main.Upgrade Particle Type` default from
+- [x] Correct `Setting.o7`'s `Main.Upgrade Particle Type` default from
       `"WITCH_MAGIC"` (invalid) to `"WITCH"` (valid modern `Particle`
       constant).
-- [ ] Relocate the 9 protection-plugin hook files to `legacy-hooks/`
-      (excluded from compilation), strip their registration from
-      `EpicHoppersPlugin.onEnable()`.
-- [ ] Add VaultAPI exclusion for the transitive `org.bukkit:bukkit`
-      capability conflict if it recurs (confirmed present in `EHopper.java`'s
-      economy-upgrade path and `CommandBoost`'s Vault usage — same shape of
-      problem `EpicFurnaces` hit).
-- [ ] Bump `plugin.yml`'s `api-version` from `1.13` to match the real build
-      target, and drop the hard `depend: [Arconix]`.
-- [ ] Green build (`./gradlew build`), verify jar contents (`unzip -l`).
-      Commit + push.
+- [x] Relocated the 9 protection-plugin hook files to `legacy-hooks/`
+      (excluded from compilation), stripped their registration from
+      `EpicHoppersPlugin.onEnable()`, and trimmed the now-stale entries out
+      of `plugin.yml`'s `softdepend` (kept `WildStacker`/`Vault`, the two
+      soft-deps that still have live integration code).
+- [x] VaultAPI transitive `org.bukkit:bukkit` capability conflict was already
+      excluded in `build.gradle.kts` from an earlier session pass; confirmed
+      still correct, no further change needed.
+- [x] Bumped `plugin.yml`'s `api-version` from `1.13` to `"26.2"`, dropped the
+      hard `depend: [Arconix]`, and switched `version: 3.1` to the
+      `${version}` Gradle-templated placeholder (matching `EpicFurnaces`'s
+      pattern; `build.gradle.kts`'s `processResources` block already filtered
+      `plugin.yml` for this token from an earlier pass).
+- [x] Added the missing `# Gradle` section to `.gitignore`
+      (`.gradle/`, `build/`, `!gradle/wrapper/gradle-wrapper.jar`).
+- [x] Green build (`./gradlew clean shadowJar`); verified jar contents via
+      `unzip -l build/libs/EpicHoppers-3.1.jar` — `plugin.yml` inside the jar
+      shows the templated version/api-version/softdepend correctly, and a
+      targeted `unzip -l | grep -i arconix` on the built jar returns no
+      matches (clean removal, not just a successful compile). Committed and
+      pushed.
 
 ### 3. Cross-platform assessment
 
