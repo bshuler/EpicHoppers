@@ -223,6 +223,83 @@ class SettingsManagerTest {
     }
 
     @Test
+    void clickingAStainedGlassPlaceholderInTheEditorDoesNothing() {
+        // openEditor() itself never places glass (unlike openSettingsManager),
+        // but onInventoryClick's Editor branch defensively re-checks for it -
+        // exercise that guard directly against the live open inventory.
+        PlayerMock player = server.addPlayer();
+        settingsManager.openSettingsManager(player);
+        settingsManager.onInventoryClick(new InventoryClickEvent(player.getOpenInventory(),
+                InventoryType.SlotType.CONTAINER, 10, ClickType.LEFT, InventoryAction.PICKUP_ALL));
+
+        org.bukkit.inventory.Inventory editor = player.getOpenInventory().getTopInventory();
+        int emptySlot = -1;
+        for (int i = 0; i < editor.getSize(); i++) {
+            if (editor.getItem(i) == null) {
+                emptySlot = i;
+                break;
+            }
+        }
+        assertTrue(emptySlot >= 0, "Expected at least one unused slot in the editor inventory");
+        editor.setItem(emptySlot, Methods.getGlass());
+        boolean before = plugin.getConfig().getBoolean("Main.Allow hopper Upgrading");
+
+        InventoryClickEvent event = new InventoryClickEvent(player.getOpenInventory(), InventoryType.SlotType.CONTAINER,
+                emptySlot, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        settingsManager.onInventoryClick(event);
+
+        assertTrue(event.isCancelled());
+        assertEquals(before, plugin.getConfig().getBoolean("Main.Allow hopper Upgrading"));
+        assertEquals("EpicHoppers Settings Editor", player.getOpenInventory().getTitle());
+    }
+
+    @Test
+    void onChatParsesADoubleValuedSettingUsingIsDouble() {
+        // No shipped Setting is double-typed today, but onChat's isDouble
+        // branch must still work correctly for a config value an admin (or a
+        // future setting) stores as a real double - exercise it against a
+        // key set directly to a double default, the same way editObject()
+        // would have set up "current" for any other type.
+        PlayerMock player = server.addPlayer();
+        plugin.getConfig().set("Main.Double Setting", 1.5);
+        // finishEditing() unconditionally reopens the editor for whatever
+        // category is on record for the player, so establish "Main" as that
+        // category the same way a real click would first.
+        settingsManager.openSettingsManager(player);
+        settingsManager.onInventoryClick(new InventoryClickEvent(player.getOpenInventory(),
+                InventoryType.SlotType.CONTAINER, 10, ClickType.LEFT, InventoryAction.PICKUP_ALL));
+
+        settingsManager.editObject(player, "Main.Double Setting");
+        AsyncPlayerChatEvent chat = new AsyncPlayerChatEvent(false, player, "3.5", Collections.emptySet());
+        settingsManager.onChat(chat);
+
+        assertTrue(chat.isCancelled());
+        assertEquals(3.5, plugin.getConfig().getDouble("Main.Double Setting"));
+    }
+
+    @Test
+    void openEditorAddsWrappedDescriptionLoreWhenSettingDefinitionsHasAMatchingEntry() {
+        // SettingDefinitions.yml now carries a real entry keyed
+        // "Main.Allow hopper Upgrading" - openEditor's description lookup
+        // (defs.getConfig().contains(fKey)/getString(fKey)) should find it
+        // and append the word-wrapped description as extra lore lines below
+        // the plain true/false line.
+        PlayerMock player = server.addPlayer();
+        settingsManager.openSettingsManager(player);
+        settingsManager.onInventoryClick(new InventoryClickEvent(player.getOpenInventory(),
+                InventoryType.SlotType.CONTAINER, 10, ClickType.LEFT, InventoryAction.PICKUP_ALL));
+
+        org.bukkit.inventory.Inventory editor = player.getOpenInventory().getTopInventory();
+        int leverSlot = findSlotOfType(editor, Material.LEVER);
+        java.util.List<String> lore = editor.getItem(leverSlot).getItemMeta().getLore();
+
+        assertTrue(lore.size() > 1, "Expected description lore lines beyond the plain true/false line");
+        String joined = org.bukkit.ChatColor.stripColor(String.join(" ", lore.subList(1, lore.size())))
+                .replaceAll("\\s+", " ").trim();
+        assertTrue(joined.contains("access the upgrade window"), "Unexpected lore text: " + joined);
+    }
+
+    @Test
     void finishEditingRemovesTheInProgressEditAndReopensTheCategoryEditor() {
         PlayerMock player = server.addPlayer();
         settingsManager.openSettingsManager(player);

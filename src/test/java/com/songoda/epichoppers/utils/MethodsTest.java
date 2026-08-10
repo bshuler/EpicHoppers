@@ -51,6 +51,14 @@ class MethodsTest {
         MockBukkit.unmock();
     }
 
+    @Test
+    void canBeInstantiated() {
+        // Methods is a static-only utility class, never instantiated
+        // anywhere in the codebase; this only exists to exercise the
+        // implicit default constructor for coverage purposes.
+        new Methods();
+    }
+
     // -- formatText --------------------------------------------------------
 
     @Test
@@ -245,6 +253,30 @@ class MethodsTest {
         assertNotNull(b);
         assertTrue(a.getType().name().endsWith("_STAINED_GLASS_PANE"));
         assertTrue(b.getType().name().endsWith("_STAINED_GLASS_PANE"));
+    }
+
+    @Test
+    void getGlassPicksARandomColorWhenRainbowIsEnabled() {
+        // getBackgroundGlass/getGlass's default config path always passes
+        // rainbow=false; enabling this config key is the only way to reach
+        // getGlassPane's random-DyeColor branch.
+        plugin.getConfig().set("Interfaces.Replace Glass Type 1 With Rainbow Glass", true);
+        ItemStack glass = Methods.getGlass();
+        assertNotNull(glass);
+        assertTrue(glass.getType().name().endsWith("_STAINED_GLASS_PANE"));
+    }
+
+    @Test
+    void getGlassFallsBackToWhiteWhenTheConfiguredDyeDataIsOutOfRange() {
+        // DyeColor.getByWoolData((byte) dyeData) returns null for any value
+        // outside the 16 valid wool-data indices - exercises getGlassPane's
+        // "color == null -> WHITE" fallback with a real, reachable config
+        // value rather than a hack.
+        plugin.getConfig().set("Interfaces.Replace Glass Type 1 With Rainbow Glass", false);
+        plugin.getConfig().set("Interfaces.Glass Type 1", 99);
+        ItemStack glass = Methods.getGlass();
+        assertNotNull(glass);
+        assertEquals(Material.WHITE_STAINED_GLASS_PANE, glass.getType());
     }
 
     // -- formatName --------------------------------------------------------

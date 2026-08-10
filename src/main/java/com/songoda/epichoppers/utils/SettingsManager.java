@@ -160,7 +160,7 @@ public class SettingsManager implements Listener {
             }
 
             if (defs.getConfig().contains(fKey)) {
-                String text = defs.getConfig().getString(key);
+                String text = defs.getConfig().getString(fKey);
 
                 Matcher m = SETTINGS_PATTERN.matcher(text);
                 while (m.find()) {

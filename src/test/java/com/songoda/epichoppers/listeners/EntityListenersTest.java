@@ -11,6 +11,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -130,6 +131,103 @@ class EntityListenersTest {
 
         EntityDeathEvent death = deathEvent(zombie,
                 new ArrayList<>(List.of(new ItemStack(Material.ROTTEN_FLESH, 1))));
+        listener.onDrop(death);
+
+        assertEquals(1, death.getDrops().size());
+    }
+
+    @Test
+    void onDedSwallowsAClassCastExceptionWhenTheDamagedEntityIsNotLiving() {
+        // EntityDamageByEntityEvent's damaged entity need not be a
+        // LivingEntity (e.g. a Boat) - onDed's unconditional
+        // "(LivingEntity) e.getEntity()" cast then genuinely throws a
+        // ClassCastException, caught by onDed's own catch block.
+        PlayerMock player = server.addPlayer();
+        player.getInventory().setItemInMainHand(new EnchantmentHandler().createSyncTouch(
+                new ItemStack(Material.DIAMOND_SWORD), world.getBlockAt(0, 0, 0)));
+        org.bukkit.entity.Boat boat = world.spawn(world.getBlockAt(2, 0, 0).getLocation(), org.bukkit.entity.Boat.class);
+
+        EntityDamageByEntityEvent damage = new EntityDamageByEntityEvent(player, boat,
+                EntityDamageEvent.DamageCause.ENTITY_ATTACK, 10);
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> listener.onDed(damage));
+    }
+
+    @Test
+    void onDropSwallowsANullPointerExceptionWhenTheTrackedPlayerNoLongerHoldsAnItem() {
+        // By the time onDrop fires, the player may have switched their main
+        // hand item to nothing (AIR) - item.getItemMeta() returns null on
+        // AIR, and the very next call dereferences it, a genuine NPE the
+        // method's own catch block must swallow.
+        PlayerMock player = server.addPlayer();
+        Block chest = world.getBlockAt(0, 0, 0);
+        chest.setType(Material.CHEST);
+        player.getInventory().setItemInMainHand(new EnchantmentHandler().createSyncTouch(
+                new ItemStack(Material.DIAMOND_SWORD), chest));
+
+        Zombie zombie = world.spawn(world.getBlockAt(5, 0, 0).getLocation(), Zombie.class);
+        zombie.setHealth(0.5);
+        EntityDamageByEntityEvent damage = new EntityDamageByEntityEvent(player, zombie,
+                EntityDamageEvent.DamageCause.ENTITY_ATTACK, 10);
+        listener.onDed(damage);
+
+        // Switch away from the sync tool before the entity actually dies.
+        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+
+        List<ItemStack> drops = new ArrayList<>(List.of(new ItemStack(Material.ROTTEN_FLESH, 1)));
+        EntityDeathEvent death = deathEvent(zombie, drops);
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> listener.onDrop(death));
+        assertEquals(1, death.getDrops().size());
+    }
+
+    @Test
+    void onDropLeavesDropsAloneWhenTheToolHasMatchingLoreButNoPersistentDataEntry() {
+        // Hand-crafted tool: matches Methods.isSync()'s lore-text check (so
+        // onDed tracks the kill) but never had createSyncTouch()'s
+        // PersistentDataContainer entry written - exercises onDrop's
+        // "encoded == null" guard without any reflection.
+        PlayerMock player = server.addPlayer();
+        ItemStack tool = new ItemStack(Material.DIAMOND_SWORD);
+        ItemMeta meta = tool.getItemMeta();
+        meta.setLore(List.of(org.bukkit.ChatColor.GREEN + "Sync Touch",
+                com.songoda.epichoppers.utils.Methods.toHiddenString(
+                        com.songoda.epichoppers.utils.Methods.serializeLocation(world.getBlockAt(0, 0, 0)))));
+        tool.setItemMeta(meta);
+        player.getInventory().setItemInMainHand(tool);
+
+        Zombie zombie = world.spawn(world.getBlockAt(5, 0, 0).getLocation(), Zombie.class);
+        zombie.setHealth(0.5);
+        EntityDamageByEntityEvent damage = new EntityDamageByEntityEvent(player, zombie,
+                EntityDamageEvent.DamageCause.ENTITY_ATTACK, 10);
+        listener.onDed(damage);
+
+        List<ItemStack> drops = new ArrayList<>(List.of(new ItemStack(Material.ROTTEN_FLESH, 1)));
+        EntityDeathEvent death = deathEvent(zombie, drops);
+        listener.onDrop(death);
+
+        assertEquals(1, death.getDrops().size());
+    }
+
+    @Test
+    void onDropLeavesDropsAloneWhenTheSyncedLocationIsNoLongerAChest() {
+        PlayerMock player = server.addPlayer();
+        Block chest = world.getBlockAt(0, 0, 0);
+        chest.setType(Material.CHEST);
+        ItemStack tool = new EnchantmentHandler().createSyncTouch(new ItemStack(Material.DIAMOND_SWORD), chest);
+        player.getInventory().setItemInMainHand(tool);
+
+        Zombie zombie = world.spawn(world.getBlockAt(5, 0, 0).getLocation(), Zombie.class);
+        zombie.setHealth(0.5);
+        EntityDamageByEntityEvent damage = new EntityDamageByEntityEvent(player, zombie,
+                EntityDamageEvent.DamageCause.ENTITY_ATTACK, 10);
+        listener.onDed(damage);
+
+        // The chest is gone by the time the zombie actually dies.
+        chest.setType(Material.AIR);
+
+        List<ItemStack> drops = new ArrayList<>(List.of(new ItemStack(Material.ROTTEN_FLESH, 1)));
+        EntityDeathEvent death = deathEvent(zombie, drops);
         listener.onDrop(death);
 
         assertEquals(1, death.getDrops().size());

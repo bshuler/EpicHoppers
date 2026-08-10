@@ -15,6 +15,7 @@ import org.mockbukkit.mockbukkit.world.WorldMock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EnchantmentHandlerTest {
@@ -71,6 +72,20 @@ class EnchantmentHandlerTest {
         assertNotNull(item);
         assertEquals(1, item.getItemMeta().getLore().size());
         assertEquals(org.bukkit.ChatColor.GRAY + "Sync Touch", item.getItemMeta().getLore().get(0));
+    }
+
+    @Test
+    void createSyncTouchReturnsNullWhenTheGivenItemHasNoItemMeta() {
+        // Material.AIR items have no ItemMeta (getItemMeta() returns null on
+        // real Bukkit/MockBukkit alike), so dereferencing it inside the
+        // b != null branch is a genuine, reachable NPE - not a contrived one -
+        // caught by createSyncTouch's own catch block.
+        WorldMock world = server.addSimpleWorld("world");
+        Block block = world.getBlockAt(1, 2, 3);
+
+        ItemStack result = handler.createSyncTouch(new ItemStack(Material.AIR), block);
+
+        assertNull(result);
     }
 
     @Test

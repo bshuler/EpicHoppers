@@ -91,6 +91,29 @@ class HopperListenersTest {
     }
 
     @Test
+    void onHopLeavesMovementAloneWhenTheSourceIsAVirtualInventory() {
+        // On real Bukkit a source Inventory with no backing block/holder
+        // returns null from getLocation(), which makes
+        // EHopperManager.roundLocation NPE - a genuine failure mode this
+        // method's catch block exists to swallow. MockBukkit's InventoryMock
+        // diverges here: getLocation() falls back to the first world's spawn
+        // location instead of null, so under MockBukkit this only exercises
+        // the "not a registered hopper" branch, not the catch block itself.
+        // See PLAN.md's Testing section for why that specific catch path is
+        // an accepted, undocumented-by-test gap.
+        org.bukkit.inventory.Inventory virtualSource = server.createInventory(null, 9);
+        Block chest = world.getBlockAt(0, 5, 1);
+        chest.setType(Material.CHEST);
+
+        InventoryMoveItemEvent event = new InventoryMoveItemEvent(virtualSource,
+                new ItemStack(Material.DIAMOND), ((org.bukkit.inventory.InventoryHolder) chest.getState()).getInventory(), true);
+
+        listener.onHop(event);
+
+        assertFalse(event.isCancelled());
+    }
+
+    @Test
     void onHopLeavesMovementAloneWhenTheSourceIsNotARegisteredHopper() {
         Block chest = world.getBlockAt(0, 5, 1);
         chest.setType(Material.CHEST);

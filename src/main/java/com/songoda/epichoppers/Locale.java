@@ -45,7 +45,7 @@ public class Locale {
         String fileName = name + "_" + region + FILE_EXTENSION;
         this.file = new File(localeFolder, fileName);
 
-        if (this.reloadMessages()) return;
+        if (!this.reloadMessages()) return;
 
         plugin.getLogger().info("Loaded locale " + fileName);
     }

@@ -6,6 +6,7 @@ import com.songoda.epichoppers.api.hopper.TeleportTrigger;
 import com.songoda.epichoppers.handlers.EnchantmentHandler;
 import com.songoda.epichoppers.hopper.EFilter;
 import com.songoda.epichoppers.hopper.EHopper;
+import com.songoda.epichoppers.utils.Methods;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -135,6 +136,50 @@ class BlockListenersTest {
 
         assertTrue(event.isCancelled());
         assertFalse(plugin.getHopperManager().isHopper(second.getLocation()));
+    }
+
+    @Test
+    void onBlockPlaceUsesAPerPlayerEpichoppersLimitPermissionOverTheConfigDefault() {
+        // Config default is unlimited (-1); a granted "epichoppers.limit.N"
+        // permission overrides it per-player, per maxHoppers()'s permission
+        // scan.
+        plugin.getConfig().set("Main.Max Hoppers Per Chunk", -1);
+        PlayerMock player = server.addPlayer();
+        // A second, unrelated permission alongside the real one exercises
+        // maxHoppers()'s "continue" branch for non-matching permissions, not
+        // just the one that happens to match.
+        player.addAttachment(plugin, "some.other.permission", true);
+        player.addAttachment(plugin, "epichoppers.limit.1", true);
+
+        Block first = world.getBlockAt(0, 5, 0);
+        first.setType(Material.HOPPER);
+        Block second = world.getBlockAt(1, 5, 0);
+        second.setType(Material.HOPPER);
+
+        BlockPlaceEvent event = placeEvent(second, namedItem(Material.HOPPER, "Basic Hopper"), player);
+        listener.onBlockPlace(event);
+
+        assertTrue(event.isCancelled());
+        assertFalse(plugin.getHopperManager().isHopper(second.getLocation()));
+    }
+
+    @Test
+    void onBlockPlaceSwallowsAnExceptionFromAnItemWithNoItemMeta() {
+        // Material.AIR items have no ItemMeta - e.getItemInHand().getItemMeta()
+        // returns null, and the immediately following .hasDisplayName() call
+        // NPEs. This is a genuine, reachable failure (a player could place a
+        // hopper block while somehow holding an AIR-typed "item" per the
+        // event's own item-in-hand parameter), caught by onBlockPlace's own
+        // catch block rather than propagating.
+        PlayerMock player = server.addPlayer();
+        Block block = world.getBlockAt(0, 5, 0);
+        block.setType(Material.HOPPER);
+
+        BlockPlaceEvent event = placeEvent(block, new ItemStack(Material.AIR), player);
+        listener.onBlockPlace(event);
+
+        assertFalse(event.isCancelled());
+        assertFalse(plugin.getHopperManager().isHopper(block.getLocation()));
     }
 
     // --- onBlockBreak ---
@@ -304,6 +349,31 @@ class BlockListenersTest {
         player.getInventory().setItemInMainHand(tool);
         // The chest is gone by the time the player breaks something else.
         chest.setType(Material.AIR);
+
+        Block target = world.getBlockAt(0, 5, 0);
+        target.setType(Material.STONE);
+
+        BlockBreakEvent event = new BlockBreakEvent(target, player);
+        listener.onBlockBreak(event);
+
+        assertTrue(event.isDropItems());
+    }
+
+    @Test
+    void handleSyncTouchDoesNothingWhenTheToolHasMatchingLoreButNoPersistentDataEntry() {
+        // Hand-craft a tool with the exact 2-line bound-variant lore
+        // (Methods.isSync() matches on lore text alone) but skip setting the
+        // PersistentDataContainer entry that createSyncTouch() would
+        // normally also write - exercises the "encoded == null" guard
+        // without any reflection, just a differently-built ItemStack.
+        PlayerMock player = server.addPlayer();
+        ItemStack tool = new ItemStack(Material.DIAMOND_PICKAXE);
+        ItemMeta meta = tool.getItemMeta();
+        meta.setLore(java.util.List.of(
+                org.bukkit.ChatColor.GREEN + "Sync Touch",
+                Methods.toHiddenString(Methods.serializeLocation(world.getBlockAt(5, 5, 5)))));
+        tool.setItemMeta(meta);
+        player.getInventory().setItemInMainHand(tool);
 
         Block target = world.getBlockAt(0, 5, 0);
         target.setType(Material.STONE);
