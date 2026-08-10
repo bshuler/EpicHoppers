@@ -186,12 +186,25 @@ See `PLAN.md` for the version matrix and per-version build status.
   unchanged.
 - The `Setting` enum in `SettingsManager.java` has an
   `Main.Upgrade Particle Type` default of `"WITCH_MAGIC"` — not a valid
-  modern `Particle` enum constant (the closest current constant is
-  `WITCH`). This value is only read at runtime via `Particle.valueOf(String)`
-  from a config default, not referenced as a compile-time enum constant, so
-  it was never a compile blocker, only a latent first-run
-  `IllegalArgumentException` for anyone who never edits the config. Corrected
-  the default to `"WITCH"`.
+  `Particle` enum constant on any Paper API version. Corrected the default
+  to `"WITCH"`. This value is only read at runtime via
+  `Particle.valueOf(String)`/`Methods.resolveParticle(String)` from a config
+  default, not referenced as a compile-time enum constant, so it was never a
+  compile blocker across any target version — but Bukkit renamed this
+  particular constant around the Minecraft 1.20.5 API bump
+  (`SPELL_WITCH` -> `WITCH`; also `SPELL` -> `EFFECT` elsewhere), so a plain
+  `Particle.valueOf("WITCH")` would throw `IllegalArgumentException` at
+  runtime on the older Paper API targets walked in `PLAN.md` milestone 4
+  (1.18.2/1.19.4/1.20.1 only have `SPELL_WITCH`, not `WITCH` — confirmed via
+  `javap` against each cached `paper-api` jar). Fixed by adding
+  `Methods.resolveParticle(String name)`: tries the requested name first,
+  then a small symmetric old&lt;-&gt;new alias table, mirroring the
+  `resolveParticle` fallback helper already used in the sibling
+  Spigot-InvUnload plugin. All three `Particle.valueOf(...)` call sites
+  (`Methods.doParticles`, `Methods.broadcastParticle`, `EHopper.upgradeFinal`)
+  now go through this helper, so the single `"WITCH"` config default
+  resolves correctly on every Paper API version from 1.18.2 through 26.2
+  without needing per-version config defaults.
 - `Main.BlockBreak Particle Type` defaults to `"LAVA"`, which *is* a valid
   modern `Particle` constant — left as-is.
 - `config.yml`/`SettingDefinitions.yml`'s runtime-generated defaults come

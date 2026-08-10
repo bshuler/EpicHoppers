@@ -10,6 +10,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -188,7 +190,7 @@ public class Methods {
             location.setX(location.getX() + .5);
             location.setY(location.getY() + .5);
             location.setZ(location.getZ() + .5);
-            p.getWorld().spawnParticle(Particle.valueOf(instance.getConfig().getString("Main.Upgrade Particle Type")), location, 200, .5, .5, .5);
+            p.getWorld().spawnParticle(resolveParticle(instance.getConfig().getString("Main.Upgrade Particle Type")), location, 200, .5, .5, .5);
         } catch (Exception e) {
             Debugger.runReport(e);
         }
@@ -203,10 +205,53 @@ public class Methods {
     public static void broadcastParticle(Location location, double offsetX, double offsetY, double offsetZ, double speed, String particleType, int count) {
         try {
             if (location == null || location.getWorld() == null || particleType == null) return;
-            Particle particle = Particle.valueOf(particleType);
+            Particle particle = resolveParticle(particleType);
             location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, speed);
         } catch (Exception e) {
             Debugger.runReport(e);
+        }
+    }
+
+    /**
+     * Known old-name/new-name pairs for {@link Particle} constants renamed
+     * around the Minecraft 1.20.5 Bukkit API bump (e.g. {@code SPELL_WITCH}
+     * -&gt; {@code WITCH}, {@code SPELL} -&gt; {@code EFFECT}). Kept as a
+     * simple symmetric map so a lookup in either direction finds the other
+     * name.
+     */
+    private static final Map<String, String> PARTICLE_ALIASES = new HashMap<>();
+
+    static {
+        PARTICLE_ALIASES.put("WITCH", "SPELL_WITCH");
+        PARTICLE_ALIASES.put("SPELL_WITCH", "WITCH");
+        PARTICLE_ALIASES.put("EFFECT", "SPELL");
+        PARTICLE_ALIASES.put("SPELL", "EFFECT");
+    }
+
+    /**
+     * Resolves a {@link Particle} by name, tolerating the ~1.20.5 Bukkit
+     * {@code Particle} enum rename. Paper API versions before that rename
+     * (1.18.2/1.19.4/1.20.1) only have the old names ({@code SPELL_WITCH},
+     * {@code SPELL}); versions after it (1.21.11, 26.2) only have the new
+     * names ({@code WITCH}, {@code EFFECT}). Tries the requested name first,
+     * then falls back to its known alias, so a single config value (old or
+     * new) resolves correctly regardless of which Paper API the server is
+     * running. Pattern mirrors the {@code resolveParticle} helper in the
+     * sibling Spigot-InvUnload plugin.
+     */
+    public static Particle resolveParticle(String name) {
+        try {
+            return Particle.valueOf(name);
+        } catch (IllegalArgumentException ex) {
+            String alias = PARTICLE_ALIASES.get(name);
+            if (alias != null) {
+                try {
+                    return Particle.valueOf(alias);
+                } catch (IllegalArgumentException ignored) {
+                    // fall through to rethrow the original failure below
+                }
+            }
+            throw ex;
         }
     }
 }

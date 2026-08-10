@@ -480,7 +480,7 @@ public class EHopper implements Hopper {
                 player.sendMessage(instance.getLocale().getMessage("event.upgrade.maxed", level.getLevel()));
             }
             Location loc = location.clone().add(.5, .5, .5);
-            player.getWorld().spawnParticle(org.bukkit.Particle.valueOf(instance.getConfig().getString("Main.Upgrade Particle Type")), loc, 200, .5, .5, .5);
+            player.getWorld().spawnParticle(Methods.resolveParticle(instance.getConfig().getString("Main.Upgrade Particle Type")), loc, 200, .5, .5, .5);
 
             if (instance.getConfig().getBoolean("Main.Sounds Enabled")) {
                 if (instance.getLevelManager().getHighestLevel() != level) {
