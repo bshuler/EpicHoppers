@@ -2,6 +2,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     java
+    jacoco
     id("com.gradleup.shadow") version "9.6.1"
 }
 
@@ -30,6 +31,30 @@ repositories {
     maven("https://repo.bg-software.com/repository/api/")
 }
 
+// Paper API version tests actually run against. MockBukkit-v26.1.2 (see
+// below) bundles registry/tag JSON data baked for exactly this Paper
+// version; a mismatched paper-api on the test classpath throws
+// InternalDataLoadException ("MockBukkit / MC version mismatch?") at
+// ServerMock construction. Confirmed by hitting that exact failure with the
+// main sourceSet's own (newer) `paperApiVersion` (26.2) leaking onto the
+// test classpath before this was pinned down.
+val testPaperApiVersion = "26.1.2.build.74-stable"
+
+configurations {
+    // Test code needs the same Bukkit/Vault/WildStacker API surface as main
+    // (e.g. Methods.resolveParticle's org.bukkit.Particle) without
+    // re-declaring every compileOnly dependency a second time - but paper-api
+    // itself must resolve to testPaperApiVersion, not main's newer
+    // `paperApiVersion`, so it's forced below on the test configurations.
+    testImplementation.get().extendsFrom(compileOnly.get())
+}
+
+listOf("testCompileClasspath", "testRuntimeClasspath").forEach { name ->
+    configurations.named(name) {
+        resolutionStrategy.force("io.papermc.paper:paper-api:$testPaperApiVersion")
+    }
+}
+
 dependencies {
     compileOnly("io.papermc.paper:paper-api:${providers.gradleProperty("paperApiVersion").get()}")
     // VaultAPI transitively pulls a pre-Mojang-mapped CraftBukkit snapshot
@@ -44,6 +69,20 @@ dependencies {
     // Bukkit.getPluginManager().isPluginEnabled("WildStacker"). Live coordinate,
     // unlike the 9 protection-plugin hooks (see legacy-hooks/).
     compileOnly("com.bgsoftware:WildStackerAPI:2026.2")
+
+    // Test infrastructure. MockBukkit-v26.1.2 is the newest MockBukkit
+    // release available (org.mockbukkit.mockbukkit namespace, checked live
+    // against repo1.maven.org's maven-metadata.xml on 2026-08-10) and is the
+    // target tests run against - NOT the same as the main sourceSet's
+    // default `paperApiVersion` (26.2). This is deliberate: this plugin's
+    // whole multi-version story (PLAN.md milestone 4) is that its source
+    // uses only the stable Bukkit API surface unchanged from 1.18.2 through
+    // 26.2, so a test target one calendar version behind (26.1.2) exercises
+    // the exact same code paths. See CLAUDE.md "Testing" section.
+    testImplementation(platform("org.junit:junit-bom:6.1.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v26.1.2:4.115.0")
 }
 
 tasks.withType<JavaCompile> {
@@ -58,6 +97,19 @@ tasks.shadowJar {
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+
+tasks.test {
+    useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }
 
 tasks.processResources {

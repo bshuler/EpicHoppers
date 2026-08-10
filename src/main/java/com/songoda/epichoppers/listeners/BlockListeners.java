@@ -4,6 +4,7 @@ import com.songoda.epichoppers.EpicHoppersPlugin;
 import com.songoda.epichoppers.api.hopper.Hopper;
 import com.songoda.epichoppers.api.hopper.TeleportTrigger;
 import com.songoda.epichoppers.api.hopper.levels.Level;
+import com.songoda.epichoppers.handlers.EnchantmentHandler;
 import com.songoda.epichoppers.hopper.EFilter;
 import com.songoda.epichoppers.hopper.EHopper;
 import com.songoda.epichoppers.utils.Debugger;
@@ -23,6 +24,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.persistence.PersistentDataType;
 
 /**
  * Created by songoda on 3/14/2017.
@@ -152,9 +154,11 @@ public class BlockListeners implements Listener {
         ItemMeta meta = tool.getItemMeta();
         if (tool.getItemMeta().getLore().size() != 2) return;
 
-        Location location = Methods.unserializeLocation(meta.getLore().get(1).replaceAll("§", ""));
+        String encoded = meta.getPersistentDataContainer().get(EnchantmentHandler.syncLocationKey(), PersistentDataType.STRING);
+        if (encoded == null) return;
+        Location location = Methods.unserializeLocation(encoded);
 
-        if (location.getBlock().getType() != Material.CHEST) return;
+        if (location == null || location.getBlock().getType() != Material.CHEST) return;
 
         if (e.getBlock().getType() == Material.SHULKER_BOX
                 || e.getBlock().getType() == Material.SPAWNER

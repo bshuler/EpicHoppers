@@ -52,7 +52,7 @@ public class EHopperManager implements HopperManager {
     @Override
     public Hopper getHopperFromPlayer(Player player) {
         for (Hopper hopper : registeredHoppers.values()) {
-            if (hopper.getLastPlayer() == player.getUniqueId()) {
+            if (player.getUniqueId().equals(hopper.getLastPlayer())) {
                 return hopper;
             }
         }

@@ -8,6 +8,5 @@ api-version: "26.2"
 commands:
   epichoppers:
     description: View information on this plugin.
-    default: true
     aliases: [eh]
     usage: /eh

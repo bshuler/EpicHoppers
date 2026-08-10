@@ -21,9 +21,13 @@ public class EpicHoppersAPI {
     private static EpicHoppers implementation;
 
     /**
-     * Set the EpicHoppers implementation. Once called for the first time, this
-     * method will throw an exception on any subsequent invocations. The implementation
-     * may only be set a single time, presumably by the EpicHoppers plugin
+     * Set the EpicHoppers implementation. Throws if an implementation is
+     * already registered and has not been cleared via
+     * {@link #clearImplementation()} first - presumably by the EpicHoppers
+     * plugin's {@code onDisable()}, so that a plugin reload (e.g. a server
+     * {@code /reload}, or a plugin manager like PlugMan re-enabling this
+     * plugin without a JVM restart) can re-register a fresh instance instead
+     * of permanently wedging the API after the very first enable.
      *
      * @param implementation the implementation to set
      */
@@ -33,6 +37,16 @@ public class EpicHoppersAPI {
         }
 
         EpicHoppersAPI.implementation = implementation;
+    }
+
+    /**
+     * Clear the currently registered implementation, allowing
+     * {@link #setImplementation(EpicHoppers)} to be called again. Called by
+     * {@code EpicHoppersPlugin#onDisable()} so the plugin can be safely
+     * disabled and re-enabled within the same JVM.
+     */
+    public static void clearImplementation() {
+        EpicHoppersAPI.implementation = null;
     }
 
     /**

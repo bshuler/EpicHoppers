@@ -28,7 +28,7 @@ public class HopperListeners implements Listener {
 
             Hopper hopper = instance.getHopperManager().getHopper(e.getSource().getLocation());
 
-            if (source.getHolder() instanceof Hopper && hopper.getSyncedBlock() != null) {
+            if (source.getHolder() instanceof org.bukkit.block.Hopper && hopper.getSyncedBlock() != null) {
                 e.setCancelled(true);
             }
         } catch (Exception ee) {

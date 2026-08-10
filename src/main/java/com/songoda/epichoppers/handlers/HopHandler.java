@@ -102,8 +102,8 @@ public class HopHandler {
                     hopper.setSyncedBlock(null);
                     continue;
                 }
-                int destx = location.getBlockX() >> 4;
-                int destz = location.getBlockZ() >> 4;
+                int destx = dest.getBlockX() >> 4;
+                int destz = dest.getBlockZ() >> 4;
                 if (!dest.getWorld().isChunkLoaded(destx, destz)) {
                     continue;
                 }
@@ -162,8 +162,8 @@ public class HopHandler {
             if (hopper.getFilter().getEndPoint() != null
                     && b != null && b.getState() instanceof Hopper) {
                 Location dest = hopper.getFilter().getEndPoint().getLocation();
-                int destx = loc.getBlockX() >> 4;
-                int destz = loc.getBlockZ() >> 4;
+                int destx = dest.getBlockX() >> 4;
+                int destz = dest.getBlockZ() >> 4;
                 if (!dest.getWorld().isChunkLoaded(destx, destz)) {
                     return;
                 }

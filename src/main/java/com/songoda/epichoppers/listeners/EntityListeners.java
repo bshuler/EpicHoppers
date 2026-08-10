@@ -1,6 +1,7 @@
 package com.songoda.epichoppers.listeners;
 
 import com.songoda.epichoppers.EpicHoppersPlugin;
+import com.songoda.epichoppers.handlers.EnchantmentHandler;
 import com.songoda.epichoppers.utils.Debugger;
 import com.songoda.epichoppers.utils.Methods;
 import org.bukkit.Location;
@@ -14,6 +15,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -48,12 +50,14 @@ public class EntityListeners implements Listener {
     public void onDrop(EntityDeathEvent e) {
         try {
             if (!ents.containsKey(e.getEntity().getUniqueId())) return;
-            Player p = ents.get(e.getEntity().getUniqueId());
+            Player p = ents.remove(e.getEntity().getUniqueId());
 
             ItemStack item = p.getInventory().getItemInMainHand();
             ItemMeta meta = item.getItemMeta();
-            Location location = Methods.unserializeLocation(meta.getLore().get(1).replaceAll("§", ""));
-            if (location.getBlock().getType() != Material.CHEST) return;
+            String encoded = meta.getPersistentDataContainer().get(EnchantmentHandler.syncLocationKey(), PersistentDataType.STRING);
+            if (encoded == null) return;
+            Location location = Methods.unserializeLocation(encoded);
+            if (location == null || location.getBlock().getType() != Material.CHEST) return;
             InventoryHolder ih = (InventoryHolder) location.getBlock().getState();
             for (ItemStack is : e.getDrops()) {
                 ih.getInventory().addItem(is);

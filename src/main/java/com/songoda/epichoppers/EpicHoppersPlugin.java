@@ -188,6 +188,12 @@ public class EpicHoppersPlugin extends JavaPlugin implements EpicHoppers {
         saveToFile();
         this.storage.closeConnection();
         this.protectionHooks.clear();
+        // Release the API registration so this plugin can be safely disabled
+        // and re-enabled within the same JVM (server /reload, a plugin
+        // manager re-enabling this plugin, or a test harness loading it
+        // repeatedly) without EpicHoppersAPI#setImplementation permanently
+        // wedging on "Cannot set API implementation twice".
+        EpicHoppersAPI.clearImplementation();
         console.sendMessage(Methods.formatText("&a============================="));
         console.sendMessage(Methods.formatText("&7EpicHoppers " + this.getDescription().getVersion() + " by &5Brianna <3!"));
         console.sendMessage(Methods.formatText("&7Action: &cDisabling&7..."));
