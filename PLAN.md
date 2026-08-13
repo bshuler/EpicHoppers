@@ -387,3 +387,15 @@ Concrete blockers, confirmed by re-reading the scheduler call sites
   matches (and confirms, independently re-derived) this repo's own
   `CLAUDE.md` "Platforms" section, which already flagged Folia as untested
   for exactly these two classes.
+
+## Coverage in context (measured 2026-08-13)
+
+Read from the JaCoCo XML report, not from whether the gate passes:
+
+- **Analysed surface:** 41 of 56 compiled classes (73%).
+- **Line coverage of that surface:** 100.0% (666 lines analysed).
+- Classes outside that surface are excluded by the documented exclusion list. They
+  are not covered by any test and are not runtime-verified.
+
+A passing `check` means "no regression inside the analysed surface" — it does not
+mean the whole codebase is tested to that percentage.
