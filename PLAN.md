@@ -262,10 +262,10 @@ against this plugin, not assumed from the sibling repos:
   updated). `master` (old default) and `Legacy` branches left in place,
   untouched. This repo also has an `upstream` remote
   (`electro2560/EpicHoppers`) — never pushed to.
-- Do not commit anything under `.github/workflows/` — active `gh` token for
-  the `bshuler` account lacks the `workflow` scope. Any proposed CI YAML
-  lives only in the session scratchpad, never in this repo, until pushed by
-  a session with the right token scope.
+- `.github/workflows/` changes are pushable. The `bshuler` gh token gained the
+  `workflow` OAuth scope on 2026-08-13; earlier notes in this repo saying it
+  lacks that scope are obsolete. No CI YAML needs to be parked in a scratchpad
+  any more.
 - Commits authored as `Bert Shuler <BertShuler@proton.me>`, signed via the
   1Password SSH agent. If signing fails with no human at the keyboard, the
   prepared commit message is appended to the session scratchpad's
